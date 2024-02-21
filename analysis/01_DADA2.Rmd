@@ -1,0 +1,72 @@
+---
+title: "Infer ASVs with DADA2"
+author: "Erica Sawyer"
+output: html_document
+date: "'r Sys.Data()`"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align = "center",
+                      fig.path = "/local/workdir/es986/git_repos/SalinityGradient_16S/figures/01_DADA2/")
+```
+
+
+# Goals of this File
+
+1. Use raw fastqc
+2. filter and trim bad sequences
+3. write out fastqs with high quality sequences
+4. eval quality from filter and trim
+
+# load libraries
+``` {r load libraries}
+
+#install.packages("devtools")
+library(devtools)
+
+#devtools::install_github("benjjneb/dada2")
+library(dada2)
+
+
+```
+
+# Load Data
+``` {r Load Data}
+# Set the raw fastq path to the raw sequencing files
+# Path to the fastq files
+
+raw_fastq_path <- "/local/workdir/es986/git_repos/SalinityGradient_16S/data/01_DADA2/01_raw_gzipped_fastqs"
+
+# what files in this path
+list.files(raw_fastq_path)
+
+# how many files are there
+str(list.files(raw_fastq_path))
+
+#create vector or forward reads
+forward_reads <- list.files(raw_fastq_path, pattern = "R1_001.fastq.gz", full.names = TRUE)
+#intuition check
+head(forward_reads)
+
+#create vector of reverse reads
+reverse_reads <- list.files(raw_fastq_path, pattern = "R2_001.fastq.gz", full.names = TRUE)
+#intuition check
+head(reverse_reads)
+
+```
+
+#Quality Plots
+```{r raw quality plot}
+# randomly select two samples from dataset to evaluate
+
+random_samples <- sample(1:length(reverse_reads), size=2)
+
+# calculate quality and plot of these two samples
+plotQualityProfile(forward_reads[random_samples])
+plotQualityProfile(reverse_reads[random_samples])
+
+
+```
