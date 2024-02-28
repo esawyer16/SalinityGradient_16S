@@ -21,6 +21,12 @@ knitr::opts_chunk$set(echo = TRUE,
 3. write out fastqs with high quality sequences
 4. eval quality from filter and trim
 
+#Before you start
+```{r Set Seed}
+# Any number can be chosen
+set.seed(958430)
+```
+
 # load libraries
 ``` {r load libraries}
 
@@ -95,10 +101,34 @@ head(filtered_reverse_reads)
 
 
 #filter and trim reads
-```{r filter and trim}
+
+Parameters of filter and trim  **depend on the dataset**
+```{r Filter and Trim}
 # prepare a placeholder for filtered reads
 
+# maxN = number of N bases. Remove all Ns from data
+
+#maxEE = quality filtering threshold applied to expected errors. Here is there's two expected errors it's ok. If more than two, throw away the sequence. Two values, first for fwd reads, second for rev reads
+
+#trimLeft for the low quality base position
+
+#multithread, compress helps computer
+
+# Assign a vector to filtered reads
+# Write out filtered fastq files
+filtered_reads <- filterAndTrim(fwd = forward_reads, 
+              filt = filtered_forward_reads, 
+              rev = reverse_reads, filt.rev = filtered_reverse_reads,
+              maxN = 0, maxEE = c(2,2), trimLeft = 3,
+              truncQ = 2, rm.phix = TRUE, compress = TRUE)
+              #multithread=TRUE for your personal project
 
 #filterAndTrim()
 
+```
+
+# Session Information
+```{r Session Info}
+# Ensure reproducibility
+devtools::session_info()
 ```
