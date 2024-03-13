@@ -2,7 +2,12 @@
 title: "Infer ASVs with DADA2"
 author: "Erica Sawyer"
 output: html_document
-date: "'r Sys.Data()`"
+  toc: yes
+  toc_float:
+    collapsed: no
+    smooth_scroll: yes
+    toc_depth: 3
+date: "`r Sys.Date()`"
 editor_options: 
   chunk_output_type: console
 ---
@@ -16,10 +21,21 @@ knitr::opts_chunk$set(echo = TRUE,
 
 # Goals of this File
 
-1. Use raw fastqc
-2. filter and trim bad sequences
-3. write out fastqs with high quality sequences
-4. eval quality from filter and trim
+1. Use raw fastqc and generate quality plots to assess quality of reads
+2. Filter and trim bad sequences and bases from out sequencing files
+3. Write out fastqs with high quality sequences
+4. Evaluate quality from filter and trim
+5. Infer error on forward and reverse reads individually
+6. Identify ASVs from forward and reverse reads separately
+7. Merge forward and reverse ASVs into "contiguous" ASVs
+8. Generate the ASV count table,(`otu_table` input for phyloseq)
+
+
+Output that we need:
+
+1. ASV count table `out_table`
+2. Taxonomy Table `tax_table`
+3. Sample Information `sample_data`: track the reads lost throughout the DADA2 workflow
 
 #Before you start
 ```{r Set Seed}
@@ -36,6 +52,8 @@ library(devtools)
 #devtools::install_github("benjjneb/dada2")
 library(dada2)
 
+#install.packages("tidyverse")
+library(tidyverse)
 
 ```
 
@@ -64,15 +82,18 @@ head(reverse_reads)
 
 ```
 
-#Quality Plots
+#Raw Quality Plots
 ```{r raw quality plot}
 # randomly select two samples from dataset to evaluate
 
 random_samples <- sample(1:length(reverse_reads), size=2)
 
 # calculate quality and plot of these two samples
-plotQualityProfile(forward_reads[random_samples])
-plotQualityProfile(reverse_reads[random_samples])
+plotQualityProfile(forward_reads[random_samples]) +
+  labs(title="Forward Read Raw Quality")
+
+plotQualityProfile(reverse_reads[random_samples]) +
+  labs(title="Reverse Read Raw Quality")
 
 
 ```
@@ -127,8 +148,106 @@ filtered_reads <- filterAndTrim(fwd = forward_reads,
 
 ```
 
+
+# Trimmed Quality Plots
+``` {r Filtrered Reads QC Plot}
+
+
+
+# calculate quality and plot of these two samples
+plotQualityProfile(filtered_forward_reads[random_samples])
+  labs(title="Trimmed Forward Read Quality")
+
+plotQualityProfile(filtered_reverse_reads[random_samples])
+  labs(title="Trimmed Reverse Read Quality")
+```
+
+# Aggregated Trimmed Plots
+```{r}
+# Aggregate all plots - uncomment code and run on your own time
+#plotQualityProfile(filtered_forward_reads, aggregate =TRUE) +
+  #plotQualityProfile(filtered_reverse_reads, aggregate =TRUE)
+
+```
+
+
+#Stats on read output from filtereAndTrim
+
+```{r}
+filtered_df <- as.data.frame(filtered_reads)
+head(filtered_reads)
+
+# calculate some stats - fix this
+
+filtered_df <-
+  reframe(median_reads_in = median(reads.in),
+          median_reads_out = median(reads.out),
+          meadian_percent_retained =(median(reads.out)/median(reads.in)))
+```
+
+# Error Modelling
+```{r Learn Errors}
+#Note: run separately on each illumina dataset
+
+#Forward Reads
+error_forward_reads <-
+  learnErrors(filtered_forward_reads) #multithreaded = TRUE
+#Plot Forward
+plotErrors(error_forward_reads, nominalQ = TRUE) +
+  labs(title= "Forward Read Error Model")
+
+#Reverse Reads
+error_reverse_reads <-
+  learnErrors(filtered_reverse_reads) #multithreaded = TRUE
+
+plotErrors(error_reverse_reads, nominalQ = TRUE) +
+  labs(title= "Reverse Read Error Model")
+
+```
+
+# Infer ASVs
+```{r Infer ASVs}
+# Note that this is happening separately on the forward and reverse reads. This is unique to DADA2.
+
+# infer forward ASVs
+dada_forward <- dada(filtered_forward_reads,
+                     err = error_forward_reads) # multithread=TRUE
+
+# infer reverse ASVs
+dada_reverse <- dada(filtered_reverse_reads,
+                     err = error_reverse_reads) # multithread=TRUE
+
+```
+
+
+# Merge Forward and Reverse ASVs
+```{r Merge ASVs}
+merged_ASVs <- mergePairs(dada_forward, filtered_forward_reads,
+                          dada_reverse, filtered_reverse_reads,
+                          verbose=TRUE)
+
+# Evaluate the output
+typeof(merged_ASVs)
+length(merged_ASVs)
+names(merged_ASVs)
+
+```
+
+
+#Generate ASV Count Table
+```{r Generate ASV Table }
+# Create ASV Count Table
+
+raw_ASV_table <- makeSequenceTable(merged_ASVs)
+
+# Write out the file to data/01_DADA2
+
+
+```
+
 # Session Information
 ```{r Session Info}
 # Ensure reproducibility
 devtools::session_info()
+
 ```
