@@ -9,7 +9,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
-                      fig.path = "figures/04_Biodiversity/")
+                      fig.path = "../figures/04_Biodiversity/")
 ```
 
 
@@ -133,3 +133,44 @@ ggiNEXT(iNEXT_data, type = 1, facet.var = "Order.q") +
                      guide = FALSE) + 
   theme(legend.position = "none")
 ```
+
+# Manually Plot Diversity
+
+## Rarefaction Curve
+```{r iNEXT manual plot}
+iNEXT_manual_df <-
+  iNEXT_data$iNextEst$size_based %>%
+  dplyr::rename(names = Assemblage) %>%
+  #fix sample names
+  mutate(names = gsub(names, pattern= "[.]", replace = "-"),
+         names = gsub(names, pattern= "X", replace= "")) %>%
+  # join with metadata
+  left_join(., metadata_df, by = "names") %>%
+  # add colors to df
+  left_join(., data.frame(station_colors = station_colors,
+                          station = names(station_colors)),
+            by = "station") #%>%
+  #head()
+  #View()
+
+# Inspect
+dim(iNEXT_manual_df)
+str(iNEXT_manual_df)
+
+#Plot it
+iNEXT_manual_df %>%
+  # filter out rows that are calculated by rarefaction
+  dplyr::filter(Method == "Rarefaction") %>%
+  # make plot
+  ggplot(aes(x=m, y=qD, color = station, group=names)) +
+  # line
+  geom_line() +
+  #geom_point() +
+  facet_grid(~Order.q~station, scales="fixed") +
+  scale_color_manual(values = station_colors) +
+  theme(legend.position = "bottom")
+  
+?facet_grid
+
+```
+
