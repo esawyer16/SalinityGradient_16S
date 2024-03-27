@@ -33,6 +33,12 @@ raw_preprocessed_physeq
 #intuition check
 min(sample_sums(raw_preprocessed_physeq))
 
+# Make metadata dataframe
+metadata_df <-
+  raw_preprocessed_physeq %>%
+  sample_data() %>%
+  data.frame()
+
 #Setting colors for stations
 station_colors <- c(
   "Shipping Channel" = "dodgerblue4",
@@ -46,51 +52,84 @@ station_colors <- c(
 
 
 # Goals
-1.
+1. Calculate the Hill Diversity of the samples. 
+2. Evaluate the rarefaction curves. 
+3. Evaluate the Diversity values. 
+4. Makes notes of specific samples and their seq depth. 
 
-# Diversity Calculations with iNEXT
-```{r calc div}
+# Diversity Calculations with iNEXT 
+
+```{r calc-div}
+# prepare input data 
 iNEXT_input_df <- 
   raw_preprocessed_physeq %>%
   otu_table() %>%
   data.frame()
-
-# check # somehow you are missing one ASV
+# Quick check
 dim(iNEXT_input_df)
 
-# run iNEXT to calculate hill numbers
-# Note species in rows, samples in columns
-# remember to set seed
-
-#iNEXT_data <-
-  #iNEXT(iNEXT_input_df, q = c(0,1,2), datatype = "abundance") # q0= richenss, q1=shannon, q2=simpson
+# Run iNEXT: Calculate the Hill Numbers 
+# Note that: Species in ROWS, Samples in COLUMNS 
+# Remember to set the seed! 
+#iNEXT_data <- iNEXT(iNEXT_input_df, 
+#                    q = c(0,1,2), datatype = "abundance")
 
 # Save the file
 #save(iNEXT_data, file = "data/04_Biodiversity/iNEXT_data.RData")
-
 ```
 
-# Evaluate Diversity
-```{r eval div}
+# Evaluate the Diversity! 
+```{r load-div}
 load("data/04_Biodiversity/iNEXT_data.RData")
 str(iNEXT_data)
 typeof(iNEXT_data)
-
-
-
 ```
 
-# plot diversity
-```{r plot rarefaction}
-# Prepare colors
+# Plot Diversity 
+```{r plot-rarefaction}
+# Prepare Colors 
 color_df <- 
   iNEXT_input_df %>%
   colnames() %>%
   data.frame()
-
+# Check
 head(color_df)
-#Rename column
+# Rename the column 
 colnames(color_df)[1] <- "names"
+# Check
+head(color_df)
 
 
+# Make a helper dataframe for plotting with colors 
+iNEXT_color_df <- 
+  color_df %>%
+  # Fix the names for merging
+  mutate(names = gsub(names, pattern = "[.]", replace = "-"),
+         names = gsub(names, pattern = "X",  replace = "")) %>%
+  # Merge with metadata
+  left_join(metadata_df, by = "names") %>%
+  # Merge with colors for plotting with ggiNEXT
+  left_join(data.frame(station_colors = station_colors,
+            station = names(station_colors)),
+            by = "station")
+```
+
+# Plot Rarefaction with `ggiNEXT`
+
+```{r ggiNEXT, fig.width=8, fig.height=3.5}
+# Plot rarefaction! 
+# rarefaction/extrapolation curve, type = 1 
+
+# Order q: 
+  # 0 = Richness/ Number of Total taxa
+  # 1 = Exponential Shannon / Number of "Common" taxa
+  # 2 = Inverse Simpson / Number of "Dominant" taxa 
+
+ggiNEXT(iNEXT_data, type = 1, facet.var = "Order.q") + 
+  facet_wrap(~Order.q, scales = "fixed") + 
+  scale_color_manual(values = iNEXT_color_df$station_colors, guide = FALSE) + 
+  scale_fill_manual(values = iNEXT_color_df$station_colors, guide = FALSE) + 
+  scale_shape_manual(values = base::rep(17, nsamples(raw_preprocessed_physeq)),
+                     guide = FALSE) + 
+  theme(legend.position = "none")
 ```
